@@ -1,8 +1,11 @@
+import os
 import yaml
 import github_api
 import datetime
 import time
 import argparse
+import utils
+from tg_app import TgBot
 from github import Commit, PaginatedList
 
 
@@ -12,6 +15,15 @@ class Hooker:
         self.outer = out
         self.commits_count = 0
         self.cache = []
+        self.date = None
+        self.history_dir = 'history'
+        utils.mkdir(self.history_dir)
+
+    def update_date(self) -> datetime.date:
+        current_date = datetime.datetime.now().date()
+        #if self.date == None or self.date != current_date:
+        #    self.date = current_date
+        return current_date
 
     def hook_commits(self, date:datetime.date) -> PaginatedList:
         return self.commiter.get_day_commits(date)
@@ -36,9 +48,14 @@ class Hooker:
         else:
             print(text)
 
+    def save_cache(self, date:datetime.date) -> None:
+        save_path = os.path.join(self.history_dir, 'commits_' + date.strftime('%d-%m-%Y') + '.json')
+        utils.save_json(self.cache, save_path)
+
     def tarck_commits(self):
         date = datetime.datetime.now().date()
         while True:
+            date = self.update_date()
             commits = self.hook_commits(date)
             diff_count = self.check_diff_count(commits.totalCount)
             if diff_count > 0:
@@ -46,13 +63,15 @@ class Hooker:
                 for commit in commits[:diff_count]:
                     commit_data = self.extruct_commit_data(commit)
                     self.message(commit_data)
-                    self.cache.append(commit)
-                time.sleep(30)
+                    self.cache.append(commit_data)
+                    self.save_cache()
+            time.sleep(30)
 
 
 def let_hook(config:dict) -> None:
-    commiter = github_api.Commiter(config['gh_token'], config['repo_name'])
-
+    bot = TgBot(config['tg_token'], config['channel_login'])
+    hooker = Hooker(config['gh_token'], config['repo_name'], bot)
+    hooker.tarck_commits()
 
 
 if __name__ == '__main__':
