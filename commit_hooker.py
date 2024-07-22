@@ -21,6 +21,7 @@ class Hooker:
 
     def update_date(self) -> datetime.date:
         current_date = datetime.datetime.now().date()
+        current_date = datetime.datetime.combine(current_date, datetime.datetime.min.time())
         #if self.date == None or self.date != current_date:
         #    self.date = current_date
         return current_date
@@ -53,10 +54,10 @@ class Hooker:
         utils.save_json(self.cache, save_path)
 
     def tarck_commits(self):
-        date = datetime.datetime.now().date()
         while True:
             date = self.update_date()
             commits = self.hook_commits(date)
+            print(f'Количество коммитов за {date.date().strftime("%d:%m:%Y")}: {commits.totalCount}')
             diff_count = self.check_diff_count(commits.totalCount)
             if diff_count > 0:
                 self.commits_count = commits.totalCount
@@ -69,6 +70,7 @@ class Hooker:
 
 
 def let_hook(config:dict) -> None:
+    print('start tracking')
     bot = TgBot(config['tg_token'], config['channel_login'])
     hooker = Hooker(config['gh_token'], config['repo_name'], bot)
     hooker.tarck_commits()
