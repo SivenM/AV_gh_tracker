@@ -10,36 +10,72 @@ from tg_app import TgBot
 from github import Commit, PaginatedList, PullRequest
 
 
-class Tracker:
-    def __init__(self, token:str, repo_name:str, out=None, sleep:int=30) -> None:
-        self.pler = github_api.PullRequester(token, repo_name)
-        self.outer = out
-        self.commits_count = 0
-        self.cache = []
-        self.timezone = pytz.UTC#pytz.timezone('Europe/Moscow')
-        self.date = self.get_current_date()
-        self.history_dir = 'history'
-        utils.mkdir(self.history_dir)
-        self.sleep = sleep
-        self.commit_info_form = "New commit at {}:\n\tcommit author: {}\n\tcommit hash: {}\n{}\n"
+class TimeHandler:
+
+    def __init__(self) -> None:
+        self.timezone = pytz.UTC
 
     def get_current_date(self) -> datetime.date:
         current_date = datetime.datetime.now().date()
         current_date = datetime.datetime.combine(current_date, datetime.datetime.min.time())
-        #if self.date == None or self.date != current_date:
-        #    self.date = current_date
         return current_date.replace(tzinfo=self.timezone)
 
-    def check_new_date(self):
+    def is_new_date(self, date:datetime.date):
         new_current_day = datetime.date.today()
-        if new_current_day == self.date.date():
-            self.save_cache()
-            self.cache = []
+        if new_current_day == date.date():
+            return False
+        else:
+            return True
+
+    def update_date(self, date:datetime.date, pls:PullRequest):
+        if pls[0].updated_at > date:
+            return pls[0].updated_at
+        else:
+            return date
+            
+
+class Messanger:
+
+    def __init__(self, outer=None) -> None:
+        self.outer = outer
+        self.commit_info_form = "New commit:\n\n{}\n\n\tdate: {}\n\tcommit author: {}\n\tcommit hash: {}\n" + "="*52 + "\n"
+    
+    def message(self, commit_data:dict, text:str=None) -> None:
+        if text is None:
+            text = f"New commit at {commit_data['date']}:\n\tcommit author: {commit_data['author']}\n\tcommit hash: {commit_data['hash']}"
+
+        if self.outer:
+            self.outer.send_message(text)
+        else:
+            print(text)
+
+    def send_commits_info(self, commits:list, form:str=None) -> None:
+        if form is None:
+            form = self.commit_info_form
+        
+        text = 'Commit info.\n'
+        for commit in commits:
+            text += form.format(commit['message'], commit['date'], commit['author'], commit['hash'])
+        
+        if self.outer:
+            self.outer.send_message(text)
+        else:
+            print(text)
 
 
-    def update_date(self, pls:PullRequest):
-        if pls[0].updated_at > self.date:
-            self.date = pls[0].updated_at
+class Tracker:
+
+    def __init__(self, token:str, repo_name:str, out=None, sleep:int=30) -> None:
+        self.pler = github_api.PullRequester(token, repo_name)
+        self.time_handler = TimeHandler()
+        self.messanger = Messanger(out)
+        self.outer = out
+        self.commits_count = 0
+        self.cache = []
+        self.date = self.time_handler.get_current_date()
+        self.history_dir = 'history'
+        utils.mkdir(self.history_dir)
+        self.sleep = sleep
 
     def hook_commits(self, date:datetime.date) -> PaginatedList:
         return self.commiter.get_day_commits(date)
@@ -52,7 +88,8 @@ class Tracker:
         return  {
             'date': commit.commit.author.date.isoformat(),
             'author': commit.commit.author.name,
-            'hash': commit.commit.sha
+            'hash': commit.commit.sha,
+            'message': commit.commit.message
         }
 
     def get_commits_from_pl(self, pl:PullRequest) ->list:
@@ -77,28 +114,6 @@ class Tracker:
             commits = self.get_commits_from_pl(pl)
             commit_list += commits
         return commit_list
-    
-    def message(self, commit_data:dict, text:str=None) -> None:
-        if text is None:
-            text = f"New commit at {commit_data['date']}:\n\tcommit author: {commit_data['author']}\n\tcommit hash: {commit_data['hash']}"
-
-        if self.outer:
-            self.outer.send_message(text)
-        else:
-            print(text)
-
-    def send_commits_info(self, commits:list, form:str=None) -> None:
-        if form is None:
-            form = self.commit_info_form
-        
-        text = 'Commit info.\n'
-        for commit in commits:
-            text += form.format(commit['date'], commit['author'], commit['hash'], '='*80)
-        
-        if self.outer:
-            self.outer.send_commits_info(text)
-        else:
-            print(text)
 
     def save_cache(self) -> None:
         save_path = os.path.join(self.history_dir, 'commits_' + self.date.strftime('%d-%m-%Y') + '.json')
@@ -106,13 +121,18 @@ class Tracker:
 
     def track(self):
         while True:
-            self.check_new_date()
+            #check new day
+            out = self.time_handler.is_new_date(self.date)
+            if out:
+                self.save_cache()
+                self.cache = []
+            #get data    
             pls = self.pler.get_pull_request_list(date=self.date)
             if len(pls) > 0:
                 commits = self.get_current_commits(pls)
-                self.update_date(pls)
+                self.date = self.time_handler.update_date(self.date, pls)
                 if len(commits) > 0:
-                    self.send_commits_info(commits)
+                    self.messanger.send_commits_info(commits)
                     self.cache += commits
                     self.save_cache()
             time.sleep(self.sleep)

@@ -57,7 +57,7 @@ class PullRequester(GHMaster):
     def get_pull_request_list(self, state:str='open', sort:str='updated', date:datetime=None) -> list:
         pls = self.repo.get_pulls(state=state, sort=sort)
         pls = list(pls)
-        print(f'INFO: pls before date cut: {len(pls)}')
+        #print(f'INFO: pls before date cut: {len(pls)}')
         if date:# and len(pls) > 0:
             actual_pls = []
             el = 0
