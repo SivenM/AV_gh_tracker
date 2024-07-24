@@ -2,3 +2,4 @@ cfg.yaml
 tests/
 .vscode
 .pytest_cache
+history/

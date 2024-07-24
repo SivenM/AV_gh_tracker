@@ -1,7 +1,7 @@
 from github import Github
 from github import Auth
 from github import Commit, Branch, PullRequest, PaginatedList
-import datetime
+from datetime import datetime
 
 class GHMaster:
 
@@ -54,9 +54,27 @@ class PullRequester(GHMaster):
     def __init__(self, token, repo_name) -> None:
         super().__init__(token, repo_name)
 
-    def get_pull_request_list(self) -> list:
-        pass
+    def get_pull_request_list(self, state:str='open', sort:str='updated', date:datetime=None) -> list:
+        pls = self.repo.get_pulls(state=state, sort=sort)
+        pls = list(pls)
+        print(f'INFO: pls before date cut: {len(pls)}')
+        if date:# and len(pls) > 0:
+            actual_pls = []
+            el = 0
+            pls = pls[::-1]
+            getting = True
+            while getting:
+                #print(f'el: {el} | num pls: {len(pls)}')
+                pl = pls[el]
+                if pl.updated_at > date:
+                    actual_pls.append(pl)
+                    el += 1
+                else:
+                    getting = False  
+            return actual_pls
+        else:                  
+            return pls
 
-    def get_pull_request(self) -> PullRequest:
-        pass
 
+    def get_pull_request(self, number:int) -> PullRequest:
+        return self.repo.get_pull(number=number)
