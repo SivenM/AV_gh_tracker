@@ -8,6 +8,7 @@ import utils
 import pytz
 from tg_app import TgBot
 from github import Commit, PaginatedList, PullRequest
+from loguru import logger
 
 
 class TimeHandler:
@@ -59,6 +60,7 @@ class Messanger:
         
         if self.outer:
             self.outer.send_message(text)
+            logger.info(f"message sended in tg")
         else:
             print(text)
 
@@ -69,7 +71,7 @@ class Tracker:
         self.pler = github_api.PullRequester(token, repo_name)
         self.time_handler = TimeHandler()
         self.messanger = Messanger(out)
-        self.outer = out
+
         self.commits_count = 0
         self.cache = []
         self.date = self.time_handler.get_current_date()
@@ -118,19 +120,25 @@ class Tracker:
     def save_cache(self) -> None:
         save_path = os.path.join(self.history_dir, 'commits_' + self.date.strftime('%d-%m-%Y') + '.json')
         utils.save_json(self.cache, save_path)
+        logger.info(f"cache saved in {save_path}")
 
     def track(self):
+        logger.info(f"start tracking at {self.date}")
         while True:
             #check new day
             out = self.time_handler.is_new_date(self.date)
             if out:
                 self.save_cache()
                 self.cache = []
+                logger.info("cache cleared!")
             #get data    
             pls = self.pler.get_pull_request_list(date=self.date)
+            logger.info(f"get {len(pls)} pls")
             if len(pls) > 0:
                 commits = self.get_current_commits(pls)
                 self.date = self.time_handler.update_date(self.date, pls)
+                logger.info(f"date updated to {self.date}")
+                logger.info(f"get {len(commits)} commits")
                 if len(commits) > 0:
                     self.messanger.send_commits_info(commits)
                     self.cache += commits
@@ -161,6 +169,7 @@ def let_hook(config:dict) -> None:
 
 
 if __name__ == '__main__':
+    logger.add("logs/info.log", format="{time} {level} {message}", level="INFO", rotation='00:00', compression="zip")
     parser = argparse.ArgumentParser(prog='Ловит коммиты за текущий день и собирает инфу по ним')
     parser.add_argument('-c', '--config', dest='config', type=argparse.FileType('r'), default=None)
     args = parser.parse_args()

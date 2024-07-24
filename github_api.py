@@ -3,6 +3,7 @@ from github import Auth
 from github import Commit, Branch, PullRequest, PaginatedList
 from datetime import datetime
 
+
 class GHMaster:
 
     def __init__(self, token, repo_name) -> None:
