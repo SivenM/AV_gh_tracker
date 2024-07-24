@@ -3,3 +3,4 @@ tests/
 .vscode
 .pytest_cache
 history/
+__pycache__
