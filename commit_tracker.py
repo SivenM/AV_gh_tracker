@@ -97,10 +97,14 @@ class Tracker:
     def get_commits_from_pl(self, pl:PullRequest) ->list:
         out = []
         pl_commits = list(pl.get_commits())[::-1]
+        num_commits = len(pl_commits)
+
         if len(pl_commits) > 0:
             el = 0
             getting = True
             while getting:
+                if el == num_commits:
+                    return out 
                 commit = pl_commits[el]
                 if commit.commit.author.date >= self.date:
                     extructed_data = self.extruct_commit_data(commit)

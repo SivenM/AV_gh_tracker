@@ -63,9 +63,12 @@ class PullRequester(GHMaster):
             actual_pls = []
             el = 0
             pls = pls[::-1]
+            num_pls = len(pls)
             getting = True
             while getting:
                 #print(f'el: {el} | num pls: {len(pls)}')
+                if el == num_pls:
+                    return actual_pls
                 pl = pls[el]
                 if pl.updated_at > date:
                     actual_pls.append(pl)
