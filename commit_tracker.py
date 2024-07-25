@@ -39,7 +39,7 @@ class Messanger:
 
     def __init__(self, outer=None) -> None:
         self.outer = outer
-        self.commit_info_form = "New commit:\n\n{}\n\n\tdate: {}\n\tcommit author: {}\n\tcommit hash: {}\n" + "="*52 + "\n"
+        self.commit_info_form = "New commit:\n\n{}\n\n\tdate: {}\n\tcommit author: {}\n\tcommit hash: {}\n" + "_"*10 + "\n"
     
     def message(self, commit_data:dict, text:str=None) -> None:
         if text is None:
@@ -54,9 +54,12 @@ class Messanger:
         if form is None:
             form = self.commit_info_form
         
-        text = 'Commit info.\n'
-        for commit in commits:
-            text += form.format(commit['message'], commit['date'], commit['author'], commit['hash'])
+        if len(commits) > 10:
+            text = f"detected {len(commits)}. see cache date fro details"
+        else:
+            text = 'Commit info.\n'
+            for commit in commits:
+                text += form.format(commit['message'], commit['date'], commit['author'], commit['hash'])
         
         if self.outer:
             self.outer.send_message(text)
