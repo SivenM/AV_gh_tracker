@@ -130,6 +130,7 @@ class Tracker:
             if out:
                 self.save_cache()
                 self.cache = []
+                self.date = self.time_handler.get_current_date()
                 logger.info("cache cleared!")
             #get data    
             pls = self.pler.get_pull_request_list(date=self.date)
