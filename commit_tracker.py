@@ -39,7 +39,8 @@ class Messanger:
 
     def __init__(self, outer=None) -> None:
         self.outer = outer
-        self.commit_info_form = "New commit:\n\n{}\n\n\tdate: {}\n\tcommit author: {}\n\tcommit hash: {}\n" + "_"*10 + "\n"
+        self.commit_info_form = "New commit:\n\n{}\n\n\tdate: {}\n\tcommit author: {}\n\tcommit hash: {}\n\n" + \
+            "[commit link]({})\n[pull request link]({})" + "_"*10 + "\n"
     
     def message(self, commit_data:dict, text:str=None) -> None:
         if text is None:
@@ -59,7 +60,7 @@ class Messanger:
         else:
             text = 'Commit info.\n'
             for commit in commits:
-                text += form.format(commit['message'], commit['date'], commit['author'], commit['hash'])
+                text += form.format(commit['message'], commit['date'], commit['author'], commit['hash'], commit['url'], commit['pl_url'])
         
         if self.outer:
             self.outer.send_message(text)
@@ -94,7 +95,8 @@ class Tracker:
             'date': commit.commit.author.date.isoformat(),
             'author': commit.commit.author.name,
             'hash': commit.commit.sha,
-            'message': commit.commit.message
+            'message': commit.commit.message,
+            'url': commit.url
         }
 
     def get_commits_from_pl(self, pl:PullRequest) ->list:
@@ -111,6 +113,7 @@ class Tracker:
                 commit = pl_commits[el]
                 if commit.commit.author.date >= self.date:
                     extructed_data = self.extruct_commit_data(commit)
+                    extructed_data['pl_url'] = pl.url
                     out.append(extructed_data)
                     el += 1
                 else:
