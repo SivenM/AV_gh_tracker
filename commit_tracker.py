@@ -29,8 +29,13 @@ class TimeHandler:
             return True
 
     def update_date(self, date:datetime.date, pls:PullRequest):
-        if pls[0].updated_at > date:
-            return pls[0].updated_at
+        if len(pls) == 0:
+            return date
+        
+        pls_dates = list(map(lambda x: x.updated_at, pls))
+        max_date  = max(pls_dates)
+        if max_date > date:
+            return max_date
         else:
             return date
             
@@ -101,6 +106,7 @@ class Tracker:
 
     def get_commits_from_pl(self, pl:PullRequest) ->list:
         out = []
+
         pl_commits = list(pl.get_commits())[::-1]
         num_commits = len(pl_commits)
 
@@ -109,15 +115,16 @@ class Tracker:
             getting = True
             while getting:
                 if el == num_commits:
-                    return out 
-                commit = pl_commits[el]
-                if commit.commit.author.date >= self.date:
-                    extructed_data = self.extruct_commit_data(commit)
-                    extructed_data['pl_url'] = pl.url
-                    out.append(extructed_data)
-                    el += 1
-                else:
                     getting = False
+                else: 
+                    commit = pl_commits[el]
+                    if commit.commit.author.date >= self.date:
+                        extructed_data = self.extruct_commit_data(commit)
+                        extructed_data['pl_url'] = pl.url
+                        out.append(extructed_data)
+                        el += 1
+                    else:
+                        getting = False
         return out
 
     def get_current_commits(self, pls:list) -> list:

@@ -68,13 +68,14 @@ class PullRequester(GHMaster):
             while getting:
                 #print(f'el: {el} | num pls: {len(pls)}')
                 if el == num_pls:
-                    return actual_pls
-                pl = pls[el]
-                if pl.updated_at > date:
-                    actual_pls.append(pl)
-                    el += 1
-                else:
-                    getting = False  
+                    getting = False
+                else: 
+                    pl = pls[el]
+                    if pl.updated_at > date:
+                        actual_pls.append(pl)
+                        el += 1
+                    else:
+                        getting = False  
             return actual_pls
         else:                  
             return pls
@@ -82,3 +83,4 @@ class PullRequester(GHMaster):
 
     def get_pull_request(self, number:int) -> PullRequest:
         return self.repo.get_pull(number=number)
+    
