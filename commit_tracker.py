@@ -271,7 +271,10 @@ class Tracker:
 
 def let_hook(config:dict) -> None:
     print('start tracking')
-    bot = TgBot(config['tg_token'], config['channel_login'])
+    if type(config['tg_token']) == str or len(config['tg_token']) > 0:
+        bot = TgBot(config['tg_token'], config['channel_login'])
+    else:
+        bot = None
     tracker = Tracker(config['gh_token'], config['repo_name'], bot)
     tracker.track()
 
