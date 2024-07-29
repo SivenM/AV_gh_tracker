@@ -70,7 +70,7 @@ class FeatureCreator:
 
     def create_num_lines_files(self,  commit:Commit) -> int:
         files = list(commit.files)
-        num_files = len(list)
+        num_files = len(files)
         count_line = 0
         for file in files:
             diff = file.patch
@@ -91,7 +91,7 @@ class FeatureCreator:
 
     def create_delta_pl(self, commit_date:datetime.datetime, prev_commit:datetime.datetime):
         if prev_commit == None:
-            delta_pl == 0.
+            delta_pl = 0.
         else:
             delta_pl = self._create_delta(commit_date, prev_commit)
         return delta_pl
@@ -103,7 +103,7 @@ class FeatureCreator:
             author=commit.commit.author.name,
             hash=commit.commit.sha,
             message=commit.commit.message,
-            url=commit.url,
+            url=commit.html_url,
             pl_url=pl_url,
             num_lines=num_lines,
             num_files=num_files,
@@ -147,7 +147,8 @@ class Messanger:
         self.outer = outer
         self.commit_info_form = "New commit:\n\n{}\n\n\tdate: {}\n\tcommit author: {}\n\tcommit hash: {}" + \
             "\n\tnum lines: {}\n\tnum files: {}\n\tpl delta: {}\n\tauthor delta: {}" + \
-            "\n\n[commit link]({})\n[pull request link]({})" + "_"*10 + "\n"
+            "\n\n[commit link]({})\n[pull request link]({})\n" + "_"*10 + "\n"
+            #'\n\n<a href="{}"commit link</a>\n<a href="{}"pull request link</a>\n' + "_"*10 + "\n"
     
     def message(self, text:str=None) -> None:
         if self.outer:
@@ -207,7 +208,7 @@ class Tracker:
         return diff
 
     def get_prev_commit(self, el:int, commits:list) -> Commit:
-        next_el += el
+        next_el = el + 1
         if next_el >= len(commits):
             return None
         else:
@@ -230,7 +231,7 @@ class Tracker:
                     if commit.commit.author.date >= self.date:
                         prev_commit_pl = self.get_prev_commit(el, pl_commits)
                         prev_date_author = self.cache.set_author_last_date(commit.commit.author.name)
-                        commit_data = self.fcreator.create_features(commit, prev_commit_pl, prev_date_author, pl.url)
+                        commit_data = self.fcreator.create_features(commit, prev_commit_pl, prev_date_author, pl.html_url)
                         out.append(commit_data)
                         el += 1
                     else:
@@ -266,7 +267,6 @@ class Tracker:
                     self.cache.get(commits)
                     self.cache.save(self.date)
             time.sleep(self.sleep)
-
 
 
 def let_hook(config:dict) -> None:

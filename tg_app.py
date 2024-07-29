@@ -8,4 +8,4 @@ class TgBot:
         self.chat_id=chat_id
 
     def send_message(self, text:str):
-        self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode='HTML', disable_web_page_preview=True)
+        self.bot.send_message(chat_id=self.chat_id, text=text, parse_mode='Markdown', disable_web_page_preview=True)
