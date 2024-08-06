@@ -75,9 +75,10 @@ class FeatureCreator:
         count_line = 0
         for file in files:
             diff = file.patch
-            for diff_line in diff.splitlines():
-                    if diff_line[0] == '+' and not diff_line[:3] == "+++" and diff_line != '-':
-                        count_line += 1
+            if diff:
+                for diff_line in diff.splitlines():
+                        if diff_line[0] == '+' and not diff_line[:3] == "+++" and diff_line != '-':
+                            count_line += 1
         return count_line, num_files
 
     def _create_delta(self, curr_day:datetime.datetime, prev_commit_date:datetime.datetime) -> float:
@@ -161,7 +162,7 @@ class Messanger:
         if form is None:
             form = self.commit_info_form
         
-        if len(commits) > 8:
+        if len(commits) > 4:
             text = f"detected {len(commits)}. see history date fro details"
         else:
             text = 'Commit info.\n'
