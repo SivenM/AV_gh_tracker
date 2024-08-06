@@ -69,6 +69,7 @@ class FeatureCreator:
         pass
 
     def create_num_lines_files(self,  commit:Commit) -> int:
+        logger.info(f'commit: {commit.html_url}')
         files = list(commit.files)
         num_files = len(files)
         count_line = 0
@@ -207,12 +208,19 @@ class Tracker:
         diff = count - self.commits_count
         return diff
 
-    def get_prev_commit(self, el:int, commits:list) -> Commit:
+    def get_prev_commit_date(self, el:int, commits:list) -> Commit:
         next_el = el + 1
         if next_el >= len(commits):
             return None
         else:
-            return commits[next_el]
+            return commits[next_el].commit.author.date
+
+    def is_merge(self, commit:Commit) -> bool:
+        logger.info(f'{commit.commit.message}')
+        if 'merg' in commit.commit.message.lower():
+            return True
+        else:
+            return False 
 
     def get_commits_from_pl(self, pl:PullRequest) ->list:
         out = []
@@ -224,15 +232,22 @@ class Tracker:
             el = 0
             getting = True
             while getting:
+                logger.info(f'el: {el}')
                 if el == num_commits:
                     getting = False
                 else: 
                     commit = pl_commits[el]
                     if commit.commit.author.date >= self.date:
-                        prev_commit_pl = self.get_prev_commit(el, pl_commits)
-                        prev_date_author = self.cache.set_author_last_date(commit.commit.author.name)
-                        commit_data = self.fcreator.create_features(commit, prev_commit_pl, prev_date_author, pl.html_url)
-                        out.append(commit_data)
+                        if self.is_merge(commit) == False:
+                            #self.messanger.message(
+                            #    f'New merge commit:\n\n{commit.commit.message}\n\n\tdate: {commit.commit.author.date}' +\
+                            #    f'\n\tcommit author: {commit.commit.author.name}\n\tcommit hash: {commit.commit.sha}' + \
+                            #    f'\n\n[commit link]({commit.html_url})\n[pull request link]({pl.html_url})\n' + "_"*10 + "\n"
+                            #)
+                            prev_commit_pl = self.get_prev_commit_date(el, pl_commits)
+                            prev_date_author = self.cache.set_author_last_date(commit.commit.author.name)
+                            commit_data = self.fcreator.create_features(commit, prev_commit_pl, prev_date_author, pl.html_url)
+                            out.append(commit_data)
                         el += 1
                     else:
                         getting = False
