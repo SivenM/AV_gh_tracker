@@ -48,10 +48,13 @@ class JiraMaster:
         return data
 
     def get_issue_type(self, issue_key:str) -> str:
-        url = f"https://{self.domain}.atlassian.net/rest/api/3/issue/{issue_key}"
-        response = self.get_response(url)
-        issue_type = response['fields']['issuetype']['name']
-        return issue_type    
+        if issue_key:
+            url = f"https://{self.domain}.atlassian.net/rest/api/3/issue/{issue_key}"
+            response = self.get_response(url)
+            issue_type = response['fields']['issuetype']['name']
+            return issue_type    
+        else:
+            return None
 
     def get_issue_data(self, issue_key) -> dict:
         url = f"https://{self.domain}.atlassian.net/rest/api/3/issue/{issue_key}"

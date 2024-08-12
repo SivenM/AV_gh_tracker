@@ -6,3 +6,5 @@ history/
 __pycache__
 logs
 get_diff.py
+get_issue_type.py
+get_filenames.py

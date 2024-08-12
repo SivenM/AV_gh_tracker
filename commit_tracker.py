@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import Optional, List
 import os
 import yaml
+import re
 import github_api
 from pydantic import BaseModel
 import datetime
@@ -11,6 +12,7 @@ import pytz
 from tg_app import TgBot
 from github import Commit, PaginatedList, PullRequest
 from loguru import logger
+from jira_api import JiraMaster
 
 
 class CommitData(BaseModel):
@@ -19,11 +21,13 @@ class CommitData(BaseModel):
     hash:str
     num_lines:int
     num_files:int
+    filenames:List[str]
     delta_day:Optional[float]
     delta_pl:Optional[float]
     message:str
     url:str
     pl_url:str
+    issue_type:str=None
     
 
 class Cache:
@@ -69,17 +73,18 @@ class FeatureCreator:
         pass
 
     def create_num_lines_files(self,  commit:Commit) -> int:
-        logger.info(f'commit: {commit.html_url}')
         files = list(commit.files)
         num_files = len(files)
+        names = []
         count_line = 0
         for file in files:
+            names.append(file.filename)
             diff = file.patch
             if diff:
                 for diff_line in diff.splitlines():
                         if diff_line[0] == '+' and not diff_line[:3] == "+++" and diff_line != '-':
                             count_line += 1
-        return count_line, num_files
+        return count_line, num_files, names
 
     def _create_delta(self, curr_day:datetime.datetime, prev_commit_date:datetime.datetime) -> float:
         return (curr_day - prev_commit_date).total_seconds()
@@ -98,8 +103,16 @@ class FeatureCreator:
             delta_pl = self._create_delta(commit_date, prev_commit)
         return delta_pl
 
-    def create_features(self, commit:Commit, prev_commit_pl:Commit=None, prev_date_author:datetime.datetime=None, pl_url:str=None) -> CommitData:
-        num_lines, num_files = self.create_num_lines_files(commit)
+    def create_features(
+            self, 
+            commit:Commit, 
+            prev_commit_pl:Commit=None, 
+            prev_date_author:datetime.datetime=None, 
+            pl_url:str=None,
+            issue_type:str=None
+            ) -> CommitData:
+        
+        num_lines, num_files, filenames = self.create_num_lines_files(commit)
         return CommitData(
             date=commit.commit.author.date.isoformat(),
             author=commit.commit.author.name,
@@ -109,8 +122,10 @@ class FeatureCreator:
             pl_url=pl_url,
             num_lines=num_lines,
             num_files=num_files,
+            filenames=filenames,
             delta_day=self.create_delta_day(commit.commit.author.date, prev_date_author),
-            delta_pl=self.create_delta_pl(commit.commit.author.date, prev_commit_pl)
+            delta_pl=self.create_delta_pl(commit.commit.author.date, prev_commit_pl),
+            issue_type=issue_type
         )
 
 
@@ -189,21 +204,22 @@ class Messanger:
 
 class Tracker:
 
-    def __init__(self, token:str, repo_name:str, out=None, sleep:int=30, history_dir='history') -> None:
+    def __init__(self, token:str=None, repo_name:str=None, jira_data:dict=None, out=None, sleep:int=30, history_dir='history') -> None:
         self.pler = github_api.PullRequester(token, repo_name)
         self.time_handler = TimeHandler()
         self.messanger = Messanger(out)
         self.fcreator = FeatureCreator()
         self.cache = Cache(history_dir)
+        if jira_data:
+            self.jira_master = JiraMaster(jira_data['domain'], jira_data['email'], jira_data['token'])
+        else:
+            self.jira_master = None
 
         self.commits_count = 0
         self.date = self.time_handler.get_current_date()
         self.history_dir = 'history'
         utils.mkdir(self.history_dir)
         self.sleep = sleep
-
-    def hook_commits(self, date:datetime.date) -> PaginatedList:
-        return self.commiter.get_day_commits(date)
 
     def check_diff_count(self, count:int) -> int:
         diff = count - self.commits_count
@@ -216,6 +232,25 @@ class Tracker:
         else:
             return commits[next_el].commit.author.date
 
+    def parse_issue_key(self, title:str):
+        """
+        return AN key if true else None
+        """
+        parse_key = r"[AN]\w+-\d+"
+        matched = re.search(parse_key, title)
+        if matched:
+            return matched[0]
+        else: None
+
+    def get_issue_type(self, commit:Commit, pl:PullRequest) -> str:
+        if self.jira_master:
+            issue_key = self.parse_issue_key(commit.commit.message)
+            if issue_key == None:
+                issue_key = self.parse_issue_key(pl.title)
+            return self.jira_master.get_issue_type(issue_key)
+        else:
+            return None
+        
     def is_merge(self, commit:Commit) -> bool:
         logger.info(f'{commit.commit.message}')
         if 'merg' in commit.commit.message.lower():
@@ -233,21 +268,16 @@ class Tracker:
             el = 0
             getting = True
             while getting:
-                logger.info(f'el: {el}')
                 if el == num_commits:
                     getting = False
                 else: 
                     commit = pl_commits[el]
                     if commit.commit.author.date >= self.date:
                         if self.is_merge(commit) == False:
-                            #self.messanger.message(
-                            #    f'New merge commit:\n\n{commit.commit.message}\n\n\tdate: {commit.commit.author.date}' +\
-                            #    f'\n\tcommit author: {commit.commit.author.name}\n\tcommit hash: {commit.commit.sha}' + \
-                            #    f'\n\n[commit link]({commit.html_url})\n[pull request link]({pl.html_url})\n' + "_"*10 + "\n"
-                            #)
                             prev_commit_pl = self.get_prev_commit_date(el, pl_commits)
                             prev_date_author = self.cache.set_author_last_date(commit.commit.author.name)
-                            commit_data = self.fcreator.create_features(commit, prev_commit_pl, prev_date_author, pl.html_url)
+                            issue_type = self.get_issue_type(commit, pl)
+                            commit_data = self.fcreator.create_features(commit, prev_commit_pl, prev_date_author, pl.html_url, issue_type)
                             out.append(commit_data)
                         el += 1
                     else:
@@ -291,7 +321,7 @@ def let_hook(config:dict) -> None:
         bot = TgBot(config['tg_token'], config['channel_login'])
     else:
         bot = None
-    tracker = Tracker(config['gh_token'], config['repo_name'], bot)
+    tracker = Tracker(config['gh_token'], config['repo_name'], config['jira'], bot)
     tracker.track()
 
 
