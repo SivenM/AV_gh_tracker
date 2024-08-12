@@ -163,7 +163,7 @@ class Messanger:
     def __init__(self, outer=None) -> None:
         self.outer = outer
         self.commit_info_form = "New commit:\n\n{}\n\n\tdate: {}\n\tcommit author: {}\n\tcommit hash: {}" + \
-            "\n\tnum lines: {}\n\tnum files: {}\n\tpl delta: {}\n\tauthor delta: {}" + \
+            "\n\ttask type: {}\n\tnum lines: {}\n\tnum files: {}\n\tpl delta: {}\n\tauthor delta: {}" + \
             "\n\n[commit link]({})\n[pull request link]({})\n" + "_"*10 + "\n"
             #'\n\n<a href="{}"commit link</a>\n<a href="{}"pull request link</a>\n' + "_"*10 + "\n"
     
@@ -177,7 +177,7 @@ class Messanger:
         if form is None:
             form = self.commit_info_form
         
-        if len(commits) > 4:
+        if len(commits) > 4 and self.outer != None:
             text = f"detected {len(commits)}. see history date fro details"
         else:
             text = 'Commit info.\n'
@@ -187,6 +187,7 @@ class Messanger:
                     commit.date, 
                     commit.author, 
                     commit.hash, 
+                    commit.issue_type,
                     commit.num_lines, 
                     commit.num_files, 
                     commit.delta_pl, 
